@@ -62,17 +62,21 @@ For example:
 }
 
 // Types
-%type <val.(int)>
+%type <val:int>
     int
 
-%type <val.(*Expr)>
+%type <val:*Expr>
     expr
 
 // Rules
 expr:
     some_expr
-    { $F = $T$1 }
+    { $F = ($T)($1) }
 ```
 
+This rule will generate:
+```go
+yyVAL.val = (*Expr)(yyDollar[1].val.(*Expr))
+```
 
 © 2022 Ivan Korobkov

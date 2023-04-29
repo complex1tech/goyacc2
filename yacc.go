@@ -208,6 +208,26 @@ type Wset struct {
 var ntypes int                     // number of types defined
 var typeset = make(map[int]string) // pointers to type tags
 
+func typeType(tok int) string {
+	_, typ, _ := typeTypeField(tok)
+	return typ
+}
+
+func typeField(tok int) string {
+	field, _, _ := typeTypeField(tok)
+	return field
+}
+
+func typeTypeField(tok int) (string, string, bool) {
+	s := typeset[tok]
+	if !strings.Contains(s, ":") {
+		return s, "", false
+	}
+
+	field, typ, _ := strings.Cut(s, ":")
+	return field, typ, true
+}
+
 // token information
 
 var ntokens = 0 // number of tokens
@@ -1294,7 +1314,9 @@ loop:
 					if tok < 0 {
 						tok = fdtype(curprod[0])
 					}
-					fmt.Fprintf(fcode, ".%v", typeset[tok])
+
+					field := typeField(tok)
+					fmt.Fprintf(fcode, ".%v", field)
 				}
 				continue loop
 			}
@@ -1358,7 +1380,13 @@ loop:
 				if tok < 0 {
 					tok = fdtype(curprod[j])
 				}
-				fmt.Fprintf(fcode, ".%v", typeset[tok])
+
+				field, typ, ok := typeTypeField(tok)
+				if ok {
+					fmt.Fprintf(fcode, ".%v.(%v)", field, typ)
+				} else {
+					fmt.Fprintf(fcode, ".%v", field)
+				}
 			}
 			continue loop
 
@@ -3062,7 +3090,7 @@ func chcopy(q string) string {
 }
 
 func usage() {
-	fmt.Fprintf(stderr, "usage: yacc [-o output] [-v parsetable] input\n")
+	fmt.Fprintf(stderr, "usage: goyacc2 [-o output] [-v parsetable] input\n")
 	exit(1)
 }
 
