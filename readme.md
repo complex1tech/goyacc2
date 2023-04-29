@@ -7,7 +7,7 @@ features.
 
 Additional features:
 - Includes via `// include: filename`.
-- Extended `%type <field.type>` syntax with field names and types.
+- Extended `%type <field:type>` syntax with field names and types.
 
 ## Includes
 Use `// include: filename.y` to include a file in a grammar file.
@@ -51,8 +51,8 @@ table_name:
     { $$ = $1 }
 ```
 
-Goyacc2 extends this functionaly and adds support for `field.type` syntax, and
-`$F` to access the field name, and `$T` to access the field type.
+Goyacc2 extends this functionaly and adds support for `field:type` syntax, 
+and `$T` to access the field type.
 
 For example:
 ```
@@ -71,7 +71,7 @@ For example:
 // Rules
 expr:
     some_expr
-    { $F = ($T)($1) }
+    { $$ = ($T)($1) }
 ```
 
 This rule will generate:

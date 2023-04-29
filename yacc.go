@@ -1320,6 +1320,18 @@ loop:
 				}
 				continue loop
 			}
+			if c == 'T' {
+				// put out the proper type...
+				if ntypes != 0 {
+					if tok < 0 {
+						tok = fdtype(curprod[0])
+					}
+
+					typ := typeType(tok)
+					fmt.Fprint(fcode, typ)
+				}
+				continue loop
+			}
 			if c == '-' {
 				s = -s
 				c = getrune(finput)
