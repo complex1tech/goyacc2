@@ -11,6 +11,8 @@ Additional features:
 
 ## Includes
 Use `// include: filename.y` to include a file in a grammar file.
+Starting/ending `%%` are automatically trimmed from the included files.
+Some editors need `%%` to correctly highlight `*.y` file syntax.
 
 For example:
 ```
@@ -18,6 +20,7 @@ For example:
 // include: stmt_alter_database.y
 // include: stmt_create_table.y
 ```
+
 
 ## Extended fields
 Extended fields allow to use a single `value any` field in `union` but access and assign
