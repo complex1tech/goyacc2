@@ -162,11 +162,13 @@ var oflag string  // -o [y.go]		- y.go file
 var vflag string  // -v [y.output]	- y.output file
 var lflag bool    // -l			- disable line directives
 var prefix string // name prefix for identifiers, default yy
+var gflag string  // -g [generated.y] - write generated *.y file with included files
 
 func init() {
 	flag.StringVar(&oflag, "o", "y.go", "parser output")
 	flag.StringVar(&prefix, "p", "yy", "name prefix to use in generated code")
 	flag.StringVar(&vflag, "v", "y.output", "create parsing tables")
+	flag.StringVar(&gflag, "g", "", "write file with processed includes, i.e. y_generated.y")
 	flag.BoolVar(&lflag, "l", false, "disable line directives")
 }
 
@@ -1273,7 +1275,7 @@ l1:
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(fcode, "\n//line %v:%v", infile, lineno)
+		fmt.Fprintf(fcode, "\n\t\t//line %v:%v", infile, lineno)
 	}
 	fmt.Fprint(fcode, "\n\t\t")
 
@@ -1556,6 +1558,26 @@ func includes() {
 	fbytes := buf.Bytes()
 	freader := bytes.NewReader(fbytes)
 	finput = bufio.NewReader(freader)
+
+	// check for -g flag
+	if gflag == "" {
+		return
+	}
+
+	// write generated file
+	gen, err := os.Create(gflag)
+	if err != nil {
+		errorf("error writing %v: %v", gflag, err)
+	}
+	defer gen.Close()
+
+	_, err = gen.Write(fbytes)
+	if err != nil {
+		errorf("error writing %v: %v", gflag, err)
+	}
+
+	// replace input file name with generated
+	infile = gflag
 }
 
 // return a pointer to the name of symbol i
