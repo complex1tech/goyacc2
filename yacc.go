@@ -466,40 +466,70 @@ outer:
 
 		case TYPEDEF:
 			t = gettok()
-			if t != TYPENAME {
+			switch t {
+			case TYPENAME:
+				ty = numbval
+				for {
+					t = gettok()
+					switch t {
+					case IDENTIFIER:
+						t = chfind(1, tokname)
+						if t < NTBASE {
+							j = TYPE(toklev[t])
+							if j != 0 && j != ty {
+								errorf("type redeclaration of token %s",
+									tokset[t].name)
+							} else {
+								toklev[t] = SETTYPE(toklev[t], ty)
+							}
+						} else {
+							j = nontrst[t-NTBASE].value
+							if j != 0 && j != ty {
+								errorf("type redeclaration of nonterminal %v",
+									nontrst[t-NTBASE].name)
+							} else {
+								nontrst[t-NTBASE].value = ty
+							}
+						}
+						continue
+
+					case ',':
+						continue
+					}
+					break
+				}
+				continue
+			case IDENTIFIER:
+				tn := chfind(1, tokname)
+
+				t = gettok()
+				ty = numbval
+
+				if t != TYPENAME {
+					errorf("bad syntax in %%type")
+				}
+
+				if tn < NTBASE {
+					j = TYPE(toklev[tn])
+					if j != 0 && j != ty {
+						errorf("type redeclaration of token %s", tokset[tn].name)
+					} else {
+						toklev[tn] = SETTYPE(toklev[tn], ty)
+					}
+				} else {
+					j = nontrst[tn-NTBASE].value
+					if j != 0 && j != ty {
+						errorf("type redeclaration of nonterminal %v", nontrst[tn-NTBASE].name)
+					} else {
+						nontrst[tn-NTBASE].value = ty
+					}
+				}
+
+				t = gettok()
+				continue
+			default:
 				errorf("bad syntax in %%type")
 			}
-			ty = numbval
-			for {
-				t = gettok()
-				switch t {
-				case IDENTIFIER:
-					t = chfind(1, tokname)
-					if t < NTBASE {
-						j = TYPE(toklev[t])
-						if j != 0 && j != ty {
-							errorf("type redeclaration of token %s",
-								tokset[t].name)
-						} else {
-							toklev[t] = SETTYPE(toklev[t], ty)
-						}
-					} else {
-						j = nontrst[t-NTBASE].value
-						if j != 0 && j != ty {
-							errorf("type redeclaration of nonterminal %v",
-								nontrst[t-NTBASE].name)
-						} else {
-							nontrst[t-NTBASE].value = ty
-						}
-					}
-					continue
-
-				case ',':
-					continue
-				}
-				break
-			}
-			continue
 
 		case UNION:
 			cpyunion()
