@@ -211,24 +211,81 @@ type Wset struct {
 var ntypes int                     // number of types defined
 var typeset = make(map[int]string) // pointers to type tags
 
+// typeSpec represents a type declaration in `%type rule <field: type>`
+type typeSpec struct {
+	field string // field name
+	type_ string // optional type name if typed
+	typed bool   // whether the type was specified
+	value bool   // whether the field is a value type
+
+	cast bool // true when typed and value
+}
+
 func typeType(tok int) string {
-	_, typ, _ := typeTypeField(tok)
-	return typ
+	spec := getTypeSpec(tok)
+	return spec.type_
 }
 
 func typeField(tok int) string {
-	field, _, _ := typeTypeField(tok)
-	return field
+	spec := getTypeSpec(tok)
+	return spec.field
 }
 
-func typeTypeField(tok int) (string, string, bool) {
+func getTypeSpec(tok int) typeSpec {
 	s := typeset[tok]
-	if !strings.Contains(s, ":") {
-		return s, "", false
+	if !strings.Contains(s, " ") {
+		spec := typeSpec{
+			field: s,
+			type_: s,
+		}
+		return spec
 	}
 
-	field, typ, _ := strings.Cut(s, ":")
-	return field, typ, true
+	field, type_, _ := strings.Cut(s, " ")
+	field = strings.TrimSpace(field)
+	type_ = strings.TrimSpace(type_)
+
+	// Support `%type isolation_level <string: psql.IsolationLevel>`
+	// Here string is a value type (field).
+	value := isValueType(field)
+
+	spec := typeSpec{
+		field: field,
+		type_: type_,
+		typed: true,
+		value: value,
+		cast:  value,
+	}
+	return spec
+}
+
+func isValueType(s string) bool {
+	switch s {
+	case
+		"uint",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+
+		"int",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+
+		"float",
+		"float32",
+		"float64",
+
+		"byte",
+		"rune",
+
+		"str",
+		"string":
+		return true
+	}
+	return false
 }
 
 // token information
@@ -785,7 +842,7 @@ outer:
 	//
 	if t == MARK {
 		if !lflag {
-			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+			fmt.Fprintf(ftable, "\n// line %v:%v\n", infile, lineno)
 		}
 		for {
 			c := getrune(finput)
@@ -1102,7 +1159,7 @@ func chfind(t int, s string) int {
 func cpyunion() {
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+		fmt.Fprintf(ftable, "\n// line %v:%v\n", infile, lineno)
 	}
 	fmt.Fprintf(ftable, "type %sSymType struct", prefix)
 
@@ -1144,7 +1201,7 @@ func cpycode() {
 		lineno++
 	}
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+		fmt.Fprintf(ftable, "\n// line %v:%v\n", infile, lineno)
 	}
 	// accumulate until %}
 	code := make([]rune, 0, 1024)
@@ -1176,7 +1233,7 @@ func emitcode(code []rune, lineno int) {
 		if !fmtImported && isPackageClause(line) {
 			fmt.Fprintln(ftable, `import __yyfmt__ "fmt"`)
 			if !lflag {
-				fmt.Fprintf(ftable, "//line %v:%v\n\t\t", infile, lineno+i)
+				fmt.Fprintf(ftable, "// line %v:%v\n\t\t", infile, lineno+i)
 			}
 			fmtImported = true
 		}
@@ -1305,7 +1362,7 @@ l1:
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(fcode, "\n\t\t//line %v:%v", infile, lineno)
+		fmt.Fprintf(fcode, "\n\t\t// line %v:%v", infile, lineno)
 	}
 	fmt.Fprint(fcode, "\n\t\t")
 
@@ -1367,6 +1424,18 @@ loop:
 				}
 				continue loop
 			}
+			if c == 'F' {
+				// put out the proper field...
+				if ntypes != 0 {
+					if tok < 0 {
+						tok = fdtype(curprod[0])
+					}
+
+					spec := getTypeSpec(tok)
+					fmt.Fprint(fcode, spec.field)
+				}
+				continue loop
+			}
 			if c == '-' {
 				s = -s
 				c = getrune(finput)
@@ -1417,10 +1486,13 @@ loop:
 				ungetrune(finput, c)
 				continue loop
 			}
-			fmt.Fprintf(fcode, "%sDollar[%v]", prefix, j)
 
-			// put out the proper tag
-			if ntypes != 0 {
+			// get type spec
+			spec, ok := func() (typeSpec, bool) {
+				if ntypes == 0 {
+					return typeSpec{}, false
+				}
+
 				if j <= 0 && tok < 0 {
 					errorf("must specify type of $%v", j)
 				}
@@ -1428,11 +1500,25 @@ loop:
 					tok = fdtype(curprod[j])
 				}
 
-				field, typ, ok := typeTypeField(tok)
-				if ok {
-					fmt.Fprintf(fcode, ".%v.(%v)", field, typ)
-				} else {
-					fmt.Fprintf(fcode, ".%v", field)
+				spec := getTypeSpec(tok)
+				return spec, true
+			}()
+
+			// put out the proper tag
+			if ok && spec.cast {
+				fmt.Fprintf(fcode, "(%v)(", spec.type_)
+			}
+
+			fmt.Fprintf(fcode, "%sDollar[%v]", prefix, j)
+
+			if ok {
+				switch {
+				case spec.cast:
+					fmt.Fprintf(fcode, ".%v)", spec.field)
+				case spec.typed:
+					fmt.Fprintf(fcode, ".%v.(%v)", spec.field, spec.type_)
+				default:
+					fmt.Fprintf(fcode, ".%v", spec.field)
 				}
 			}
 			continue loop
@@ -2256,7 +2342,7 @@ func output() {
 	var c, u, v int
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line yacctab:1")
+		fmt.Fprintf(ftable, "\n// line yacctab:1")
 	}
 	var actions []int
 
@@ -3027,7 +3113,7 @@ func others() {
 
 	// copy yaccpar
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
+		fmt.Fprintf(ftable, "\n// line yaccpar:1\n")
 	}
 
 	parts := strings.SplitN(yaccpar, prefix+"run()", 2)
