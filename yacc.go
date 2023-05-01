@@ -1637,12 +1637,12 @@ func includes() {
 	scanner := bufio.NewScanner(finput)
 	for scanner.Scan() {
 		line := scanner.Text()
-		line1 := strings.TrimSpace(line)
+		fmt.Fprintln(buf, line)
 
 		// check include
+		line1 := strings.TrimSpace(line)
 		include := strings.HasPrefix(line1, "// include:")
 		if !include {
-			fmt.Fprintln(buf, line)
 			continue
 		}
 
@@ -1655,8 +1655,8 @@ func includes() {
 			errorf("error including %v: %v", path, err)
 		}
 
-		// trim %%
-		file = bytes.Trim(file, `%`)
+		// trim %% and spaces
+		file = bytes.TrimPrefix(file, []byte(`%%`))
 
 		// copy to output
 		_, err = buf.Write(file)
