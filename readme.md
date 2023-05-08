@@ -9,6 +9,7 @@ Additional features:
 - Includes via `// include: filename`.
 - Extended `%type <field:type> rule` syntax with field names and types.
 - Table-like `%type rule <field:type>` syntax.
+- Checks for duplicate rules.
 
 ## Includes
 Use `// include: filename.y` to include a file in a grammar file.
