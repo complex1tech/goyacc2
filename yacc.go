@@ -1508,8 +1508,13 @@ loop:
 			}()
 
 			// put out the proper tag
-			if ok && spec.cast {
-				fmt.Fprintf(fcode, "(%v)(", spec.type_)
+			if ok {
+				switch {
+				case spec.cast:
+					fmt.Fprintf(fcode, "(%v)(", spec.type_)
+				case spec.typed:
+					fmt.Fprintf(fcode, "cast[%v](", spec.type_)
+				}
 			}
 
 			fmt.Fprintf(fcode, "%sDollar[%v]", prefix, j)
@@ -1519,7 +1524,7 @@ loop:
 				case spec.cast:
 					fmt.Fprintf(fcode, ".%v)", spec.field)
 				case spec.typed:
-					fmt.Fprintf(fcode, ".%v.(%v)", spec.field, spec.type_)
+					fmt.Fprintf(fcode, ".%v)", spec.field)
 				default:
 					fmt.Fprintf(fcode, ".%v", spec.field)
 				}

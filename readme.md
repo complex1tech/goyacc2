@@ -72,12 +72,16 @@ and `$T` to access the field type.
 // Rules
 expr:
     some_expr
+    { $$ = $1 }
+    some_expr_with_type
     { $$ = ($T)($1) }
 ```
 
-This rule will generate:
+These rules will generate:
 ```go
-yyVAL.val = (*Expr)(yyDollar[1].val.(*Expr))
+yyVAL.val = cast[*Expr](yyDollar[1].val)
+// and
+yyVAL.val = (*Expr)(cast[*Expr](yyDollar[1].val)) // Type check on assignment
 ```
 
 ## Table-like type syntax
